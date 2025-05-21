@@ -13,6 +13,7 @@ interface ExerciseData {
   time: number
   weight: string
   lapTime: number
+  isEditing?: boolean
 }
 
 interface WorkoutSession {
@@ -24,10 +25,10 @@ interface WorkoutSession {
 export default function WeightTrainingTracker() {
   const { toast } = useToast()
   const [exercises, setExercises] = useState<ExerciseData[]>([
-    { name: "Squats", time: 0, weight: "", lapTime: 0 },
-    { name: "Chest Press", time: 0, weight: "", lapTime: 0 },
-    { name: "Bent Over Row", time: 0, weight: "", lapTime: 0 },
-    { name: "Tricep Raise", time: 0, weight: "", lapTime: 0 },
+    { name: "Squats", time: 0, weight: "", lapTime: 0, isEditing: false },
+    { name: "Chest Press", time: 0, weight: "", lapTime: 0, isEditing: false },
+    { name: "Bent Over Row", time: 0, weight: "", lapTime: 0, isEditing: false },
+    { name: "Tricep Raise", time: 0, weight: "", lapTime: 0, isEditing: false },
   ])
 
   const [activeTimers, setActiveTimers] = useState<{ [key: string]: boolean }>({
@@ -201,6 +202,36 @@ export default function WeightTrainingTracker() {
     ))
   }
 
+  const toggleEditMode = (exerciseName: string) => {
+    setExercises(prev => prev.map(ex => 
+      ex.name === exerciseName ? { ...ex, isEditing: !ex.isEditing } : ex
+    ))
+  }
+
+  const handleTimeChange = (exerciseName: string, newTime: string, isLap: boolean = false) => {
+    // Parse MM:SS format to seconds
+    const [minutes, seconds] = newTime.split(':').map(Number)
+    if (isNaN(minutes) || isNaN(seconds)) return
+    
+    const totalSeconds = minutes * 60 + seconds
+    
+    setExercises(prev => prev.map(ex => 
+      ex.name === exerciseName 
+        ? { 
+            ...ex, 
+            [isLap ? 'lapTime' : 'time']: totalSeconds,
+            isEditing: false 
+          } 
+        : ex
+    ))
+  }
+
+  const formatTimeForInput = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
+  }
+
   return (
     <div className="container max-w-3xl px-4 py-4 sm:py-8">
       <h1 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-8">SuperSlow Weight Training Tracker</h1>
@@ -224,11 +255,46 @@ export default function WeightTrainingTracker() {
                     {activeTimers[exercise.name] ? <Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6" />}
                   </Button>
                   <div className="flex flex-col gap-1">
-                    <div className={`text-xl sm:text-2xl font-mono tabular-nums ${hasImproved(exercise.name) ? 'text-green-500' : 'text-red-500'}`}>
-                      {formatTime(exercise.time)}
+                    <div 
+                      className={`text-xl sm:text-2xl font-mono tabular-nums ${hasImproved(exercise.name) ? 'text-green-500' : 'text-red-500'} cursor-pointer`}
+                      onClick={() => toggleEditMode(exercise.name)}
+                    >
+                      {exercise.isEditing ? (
+                        <Input
+                          type="text"
+                          defaultValue={formatTimeForInput(exercise.time)}
+                          className="h-8 w-24 text-xl font-mono"
+                          onBlur={(e) => handleTimeChange(exercise.name, e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleTimeChange(exercise.name, e.currentTarget.value)
+                            }
+                          }}
+                          autoFocus
+                        />
+                      ) : (
+                        formatTime(exercise.time)
+                      )}
                     </div>
-                    <div className="text-xs sm:text-sm font-mono tabular-nums text-muted-foreground">
-                      Lap: {formatTime(exercise.lapTime)}
+                    <div 
+                      className="text-xs sm:text-sm font-mono tabular-nums text-muted-foreground cursor-pointer"
+                      onClick={() => toggleEditMode(exercise.name)}
+                    >
+                      {exercise.isEditing ? (
+                        <Input
+                          type="text"
+                          defaultValue={formatTimeForInput(exercise.lapTime)}
+                          className="h-6 w-20 text-xs font-mono"
+                          onBlur={(e) => handleTimeChange(exercise.name, e.target.value, true)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              handleTimeChange(exercise.name, e.currentTarget.value, true)
+                            }
+                          }}
+                        />
+                      ) : (
+                        `Lap: ${formatTime(exercise.lapTime)}`
+                      )}
                     </div>
                   </div>
                   <Button
