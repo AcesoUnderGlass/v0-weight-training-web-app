@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Pause, Play, Download } from "lucide-react"
+import { Pause, Play, Download, Timer } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 interface ExerciseData {
   name: string
   time: number
   weight: string
+  lapTime: number
 }
 
 interface WorkoutSession {
@@ -23,10 +24,10 @@ interface WorkoutSession {
 export default function WeightTrainingTracker() {
   const { toast } = useToast()
   const [exercises, setExercises] = useState<ExerciseData[]>([
-    { name: "Squats", time: 0, weight: "" },
-    { name: "Chest Press", time: 0, weight: "" },
-    { name: "Bent Over Row", time: 0, weight: "" },
-    { name: "Tricep Raise", time: 0, weight: "" },
+    { name: "Squats", time: 0, weight: "", lapTime: 0 },
+    { name: "Chest Press", time: 0, weight: "", lapTime: 0 },
+    { name: "Bent Over Row", time: 0, weight: "", lapTime: 0 },
+    { name: "Tricep Raise", time: 0, weight: "", lapTime: 0 },
   ])
 
   const [activeTimers, setActiveTimers] = useState<{ [key: string]: boolean }>({
@@ -43,7 +44,17 @@ export default function WeightTrainingTracker() {
   useEffect(() => {
     const savedWorkouts = localStorage.getItem("workoutHistory")
     if (savedWorkouts) {
-      setWorkoutHistory(JSON.parse(savedWorkouts))
+      const parsedWorkouts = JSON.parse(savedWorkouts)
+      setWorkoutHistory(parsedWorkouts)
+      
+      // If there are previous workouts, use the weights from the most recent one
+      if (parsedWorkouts.length > 0) {
+        const lastWorkout = parsedWorkouts[0]
+        setExercises(prev => prev.map(ex => ({
+          ...ex,
+          weight: lastWorkout.exercises.find((e: ExerciseData) => e.name === ex.name)?.weight || ""
+        })))
+      }
     }
   }, [])
 
@@ -59,7 +70,11 @@ export default function WeightTrainingTracker() {
     } else {
       // Start timer
       const intervalId = setInterval(() => {
-        setExercises((prev) => prev.map((ex) => (ex.name === exerciseName ? { ...ex, time: ex.time + 1 } : ex)))
+        setExercises((prev) => prev.map((ex) => 
+          ex.name === exerciseName 
+            ? { ...ex, time: ex.time + 1, lapTime: ex.lapTime + 1 } 
+            : ex
+        ))
       }, 1000)
 
       setIntervalIds((prev) => ({ ...prev, [exerciseName]: intervalId }))
@@ -114,7 +129,7 @@ export default function WeightTrainingTracker() {
     })
 
     // Reset timers but keep weights
-    setExercises((prev) => prev.map((ex) => ({ ...ex, time: 0 })))
+    setExercises((prev) => prev.map((ex) => ({ ...ex, time: 0, lapTime: 0 })))
   }
 
   const formatDate = (dateString: string) => {
@@ -127,9 +142,24 @@ export default function WeightTrainingTracker() {
     })
   }
 
+  const hasImproved = (exerciseName: string) => {
+    if (workoutHistory.length === 0) return false
+    
+    const lastWorkout = workoutHistory[0]
+    const lastExercise = lastWorkout.exercises.find(e => e.name === exerciseName)
+    const currentExercise = exercises.find(e => e.name === exerciseName)
+    
+    if (!lastExercise || !currentExercise) return false
+    
+    const weightImproved = Number(currentExercise.weight) > Number(lastExercise.weight)
+    const timeImproved = currentExercise.time > lastExercise.time
+    
+    return weightImproved || timeImproved
+  }
+
   const exportToCSV = () => {
     // Create CSV headers
-    const headers = ["Date", "Exercise", "Time (mm:ss)", "Weight (lbs)"]
+    const headers = ["Date", "Time", "Exercise", "Time (mm:ss)", "Weight (lbs)"]
 
     // Create CSV rows
     const rows: string[][] = []
@@ -165,38 +195,63 @@ export default function WeightTrainingTracker() {
     })
   }
 
-  return (
-    <div className="container max-w-3xl py-8">
-      <h1 className="text-3xl font-bold text-center mb-8">SuperSlow Weight Training Tracker</h1>
+  const handleLap = (exerciseName: string) => {
+    setExercises((prev) => prev.map((ex) => 
+      ex.name === exerciseName ? { ...ex, lapTime: 0 } : ex
+    ))
+  }
 
-      <div className="grid gap-6">
+  return (
+    <div className="container max-w-3xl px-4 py-4 sm:py-8">
+      <h1 className="text-2xl sm:text-3xl font-bold text-center mb-4 sm:mb-8">SuperSlow Weight Training Tracker</h1>
+
+      <div className="grid gap-4 sm:gap-6">
         {exercises.map((exercise) => (
           <Card key={exercise.name}>
-            <CardHeader>
-              <CardTitle>{exercise.name}</CardTitle>
+            <CardHeader className="p-4 sm:p-6">
+              <CardTitle className="text-lg sm:text-xl">{exercise.name}</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+            <CardContent className="p-4 sm:p-6">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 items-center">
                 <div className="flex items-center gap-2">
                   <Button
                     variant={activeTimers[exercise.name] ? "destructive" : "default"}
                     size="icon"
                     onClick={() => toggleTimer(exercise.name)}
                     aria-label={activeTimers[exercise.name] ? "Stop timer" : "Start timer"}
+                    className="h-10 w-10 sm:h-12 sm:w-12"
                   >
-                    {activeTimers[exercise.name] ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                    {activeTimers[exercise.name] ? <Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6" />}
                   </Button>
-                  <div className="text-2xl font-mono tabular-nums">{formatTime(exercise.time)}</div>
+                  <div className="flex flex-col gap-1">
+                    <div className={`text-xl sm:text-2xl font-mono tabular-nums ${hasImproved(exercise.name) ? 'text-green-500' : 'text-red-500'}`}>
+                      {formatTime(exercise.time)}
+                    </div>
+                    <div className="text-xs sm:text-sm font-mono tabular-nums text-muted-foreground">
+                      Lap: {formatTime(exercise.lapTime)}
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleLap(exercise.name)}
+                    disabled={!activeTimers[exercise.name]}
+                    aria-label="Reset lap timer"
+                    className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                  >
+                    <Timer className="h-4 w-4" />
+                  </Button>
                 </div>
 
-                <div className="md:col-span-2">
-                  <Label htmlFor={`weight-${exercise.name}`}>Weight (lbs)</Label>
+                <div className="sm:col-span-2">
+                  <Label htmlFor={`weight-${exercise.name}`} className="text-sm sm:text-base">Weight (lbs)</Label>
                   <Input
                     id={`weight-${exercise.name}`}
                     type="number"
                     placeholder="Enter weight"
                     value={exercise.weight}
                     onChange={(e) => handleWeightChange(exercise.name, e.target.value)}
+                    className="h-9 sm:h-10"
                   />
                 </div>
               </div>
@@ -204,34 +259,34 @@ export default function WeightTrainingTracker() {
           </Card>
         ))}
 
-        <Button size="lg" className="mt-4" onClick={handleSubmit}>
+        <Button size="lg" className="mt-4 h-11 sm:h-12 text-base" onClick={handleSubmit}>
           Submit Workout
         </Button>
       </div>
 
       {workoutHistory.length > 0 && (
-        <div className="mt-12">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-bold">Recent Workouts</h2>
-            <Button variant="outline" onClick={exportToCSV} className="flex items-center gap-2">
+        <div className="mt-8 sm:mt-12">
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-4">
+            <h2 className="text-xl sm:text-2xl font-bold">Recent Workouts</h2>
+            <Button variant="outline" onClick={exportToCSV} className="flex items-center gap-2 h-9 sm:h-10">
               <Download className="h-4 w-4" />
               Export CSV
             </Button>
           </div>
-          <div className="grid gap-6">
+          <div className="grid gap-4 sm:gap-6">
             {workoutHistory.slice(0, 4).map((workout) => (
               <Card key={workout.id}>
-                <CardHeader>
-                  <CardTitle className="text-lg">Workout on {workout.date}</CardTitle>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-base sm:text-lg">Workout on {workout.date}</CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {workout.exercises.map((exercise) => (
                       <div key={exercise.name} className="flex justify-between border-b pb-2">
-                        <span className="font-medium">{exercise.name}</span>
+                        <span className="font-medium text-sm sm:text-base">{exercise.name}</span>
                         <div className="text-right">
-                          <div>{formatTime(exercise.time)}</div>
-                          <div>{exercise.weight ? `${exercise.weight} lbs` : "No weight recorded"}</div>
+                          <div className="text-sm sm:text-base">{formatTime(exercise.time)}</div>
+                          <div className="text-sm sm:text-base">{exercise.weight ? `${exercise.weight} lbs` : "No weight recorded"}</div>
                         </div>
                       </div>
                     ))}
