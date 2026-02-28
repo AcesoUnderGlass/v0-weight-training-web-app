@@ -188,6 +188,16 @@ export default function WeightTrainingTracker() {
     })
   }
 
+  const getLastThree = (exerciseName: string): { time: number; weight: string }[] => {
+    const results: { time: number; weight: string }[] = []
+    for (const workout of workoutHistory) {
+      const ex = workout.exercises.find(e => e.name === exerciseName)
+      if (ex) results.push({ time: ex.time, weight: ex.weight })
+      if (results.length >= 3) break
+    }
+    return results
+  }
+
   const hasImproved = (exerciseName: string) => {
     if (workoutHistory.length === 0) return false
     
@@ -259,83 +269,101 @@ export default function WeightTrainingTracker() {
               <CardTitle className="text-lg sm:text-xl">{exercise.name}</CardTitle>
             </CardHeader>
             <CardContent className="p-4 sm:p-6">
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 items-center">
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant={activeTimers[exercise.name] ? "destructive" : "default"}
-                    size="icon"
-                    onClick={() => toggleTimer(exercise.name)}
-                    aria-label={activeTimers[exercise.name] ? "Stop timer" : "Start timer"}
-                    className="h-10 w-10 sm:h-12 sm:w-12"
-                  >
-                    {activeTimers[exercise.name] ? <Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6" />}
-                  </Button>
-                  <div className="flex flex-col gap-1">
-                    <div 
-                      className={`text-xl sm:text-2xl font-mono tabular-nums ${hasImproved(exercise.name) ? 'text-green-500' : 'text-red-500'} cursor-pointer`}
-                      onClick={() => startEditing(exercise.name, 'time')}
+              <div className="flex gap-4 sm:gap-6">
+                <div className="flex-1 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6 items-center">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant={activeTimers[exercise.name] ? "destructive" : "default"}
+                      size="icon"
+                      onClick={() => toggleTimer(exercise.name)}
+                      aria-label={activeTimers[exercise.name] ? "Stop timer" : "Start timer"}
+                      className="h-10 w-10 sm:h-12 sm:w-12"
                     >
-                      {editing?.exerciseName === exercise.name && editing?.field === 'time' ? (
-                        <Input
-                          type="text"
-                          value={editing.value}
-                          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-8 w-24 text-xl font-mono"
-                          onBlur={saveEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveEdit()
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        formatTime(exercise.time)
-                      )}
+                      {activeTimers[exercise.name] ? <Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6" />}
+                    </Button>
+                    <div className="flex flex-col gap-1">
+                      <div 
+                        className={`text-xl sm:text-2xl font-mono tabular-nums ${hasImproved(exercise.name) ? 'text-green-500' : 'text-red-500'} cursor-pointer`}
+                        onClick={() => startEditing(exercise.name, 'time')}
+                      >
+                        {editing?.exerciseName === exercise.name && editing?.field === 'time' ? (
+                          <Input
+                            type="text"
+                            value={editing.value}
+                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-8 w-24 text-xl font-mono"
+                            onBlur={saveEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit()
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          formatTime(exercise.time)
+                        )}
+                      </div>
+                      <div 
+                        className="text-xs sm:text-sm font-mono tabular-nums text-muted-foreground cursor-pointer"
+                        onClick={() => startEditing(exercise.name, 'lap')}
+                      >
+                        {editing?.exerciseName === exercise.name && editing?.field === 'lap' ? (
+                          <Input
+                            type="text"
+                            value={editing.value}
+                            onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                            onClick={(e) => e.stopPropagation()}
+                            className="h-6 w-20 text-xs font-mono"
+                            onBlur={saveEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEdit()
+                            }}
+                            autoFocus
+                          />
+                        ) : (
+                          `Lap: ${formatTime(exercise.lapTime)}`
+                        )}
+                      </div>
                     </div>
-                    <div 
-                      className="text-xs sm:text-sm font-mono tabular-nums text-muted-foreground cursor-pointer"
-                      onClick={() => startEditing(exercise.name, 'lap')}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleLap(exercise.name)}
+                      disabled={!activeTimers[exercise.name]}
+                      aria-label="Reset lap timer"
+                      className="h-8 w-8 sm:h-9 sm:w-9 p-0"
                     >
-                      {editing?.exerciseName === exercise.name && editing?.field === 'lap' ? (
-                        <Input
-                          type="text"
-                          value={editing.value}
-                          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-6 w-20 text-xs font-mono"
-                          onBlur={saveEdit}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveEdit()
-                          }}
-                          autoFocus
-                        />
-                      ) : (
-                        `Lap: ${formatTime(exercise.lapTime)}`
-                      )}
-                    </div>
+                      <Timer className="h-4 w-4" />
+                    </Button>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleLap(exercise.name)}
-                    disabled={!activeTimers[exercise.name]}
-                    aria-label="Reset lap timer"
-                    className="h-8 w-8 sm:h-9 sm:w-9 p-0"
-                  >
-                    <Timer className="h-4 w-4" />
-                  </Button>
+
+                  <div className="sm:col-span-2">
+                    <Label htmlFor={`weight-${exercise.name}`} className="text-sm sm:text-base">Weight (lbs)</Label>
+                    <Input
+                      id={`weight-${exercise.name}`}
+                      type="number"
+                      placeholder="Enter weight"
+                      value={exercise.weight}
+                      onChange={(e) => handleWeightChange(exercise.name, e.target.value)}
+                      className="h-9 sm:h-10"
+                    />
+                  </div>
                 </div>
 
-                <div className="sm:col-span-2">
-                  <Label htmlFor={`weight-${exercise.name}`} className="text-sm sm:text-base">Weight (lbs)</Label>
-                  <Input
-                    id={`weight-${exercise.name}`}
-                    type="number"
-                    placeholder="Enter weight"
-                    value={exercise.weight}
-                    onChange={(e) => handleWeightChange(exercise.name, e.target.value)}
-                    className="h-9 sm:h-10"
-                  />
+                <div className="flex-shrink-0 w-28 sm:w-36 border-l pl-3 sm:pl-4">
+                  <div className="text-[10px] sm:text-xs font-medium text-muted-foreground mb-1.5">History</div>
+                  <div className="space-y-1">
+                    {(() => {
+                      const history = getLastThree(exercise.name)
+                      const rows = [0, 1, 2].map(i => history[i])
+                      return rows.map((entry, i) => (
+                        <div key={i} className="flex justify-between text-[11px] sm:text-xs font-mono tabular-nums text-muted-foreground">
+                          <span>{entry ? formatTime(entry.time) : "--:--"}</span>
+                          <span>{entry ? (entry.weight ? `${entry.weight}lb` : "0lb") : "---"}</span>
+                        </div>
+                      ))
+                    })()}
+                  </div>
                 </div>
               </div>
             </CardContent>
