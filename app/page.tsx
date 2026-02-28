@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,12 @@ interface ExerciseData {
   time: number
   weight: string
   lapTime: number
-  isEditing?: boolean
+}
+
+interface EditingState {
+  exerciseName: string
+  field: 'time' | 'lap'
+  value: string
 }
 
 interface WorkoutSession {
@@ -22,24 +27,35 @@ interface WorkoutSession {
   exercises: ExerciseData[]
 }
 
+const EXERCISE_NAMES = [
+  "Leg Press", "Leg Extension", "Leg Curl", "Abductors", "Adductors",
+  "Bench Press", "Lat Pull Down", "Overhead Press", "Row (Machine)",
+  "Squats (free)", "Chest Press (free)", "Bent Over Row (free)", "Overhead Press (free)", "Tricep Raise (free)", "Plank"
+]
+
+const makeDefaultExercises = (): ExerciseData[] =>
+  EXERCISE_NAMES.map((name) => ({ name, time: 0, weight: "", lapTime: 0 }))
+
+const makeTimerFlags = (value: boolean): { [key: string]: boolean } =>
+  Object.fromEntries(EXERCISE_NAMES.map((name) => [name, value]))
+
 export default function WeightTrainingTracker() {
   const { toast } = useToast()
-  const [exercises, setExercises] = useState<ExerciseData[]>([
-    { name: "Squats", time: 0, weight: "", lapTime: 0, isEditing: false },
-    { name: "Chest Press", time: 0, weight: "", lapTime: 0, isEditing: false },
-    { name: "Bent Over Row", time: 0, weight: "", lapTime: 0, isEditing: false },
-    { name: "Tricep Raise", time: 0, weight: "", lapTime: 0, isEditing: false },
-  ])
+  const [exercises, setExercises] = useState<ExerciseData[]>(makeDefaultExercises)
 
-  const [activeTimers, setActiveTimers] = useState<{ [key: string]: boolean }>({
-    Squats: false,
-    "Chest Press": false,
-    "Bent Over Row": false,
-    "Tricep Raise": false,
-  })
+  const [activeTimers, setActiveTimers] = useState<{ [key: string]: boolean }>(
+    () => makeTimerFlags(false)
+  )
 
   const [intervalIds, setIntervalIds] = useState<{ [key: string]: NodeJS.Timeout | null }>({})
   const [workoutHistory, setWorkoutHistory] = useState<WorkoutSession[]>([])
+
+  const [editing, _setEditing] = useState<EditingState | null>(null)
+  const editingRef = useRef<EditingState | null>(null)
+  const setEditing = (state: EditingState | null) => {
+    editingRef.current = state
+    _setEditing(state)
+  }
 
   // Load workout history from localStorage on component mount
   useEffect(() => {
@@ -59,7 +75,38 @@ export default function WeightTrainingTracker() {
     }
   }, [])
 
+  const saveEdit = () => {
+    const current = editingRef.current
+    if (!current) return
+
+    const parts = current.value.split(':').map(Number)
+    const minutes = parts[0] ?? NaN
+    const seconds = parts[1] ?? NaN
+
+    if (!isNaN(minutes) && !isNaN(seconds)) {
+      const totalSeconds = minutes * 60 + seconds
+      setExercises(prev => prev.map(ex =>
+        ex.name === current.exerciseName
+          ? { ...ex, [current.field === 'lap' ? 'lapTime' : 'time']: totalSeconds }
+          : ex
+      ))
+    }
+    setEditing(null)
+  }
+
+  const startEditing = (exerciseName: string, field: 'time' | 'lap') => {
+    saveEdit()
+    const exercise = exercises.find(ex => ex.name === exerciseName)
+    if (!exercise) return
+    const seconds = field === 'time' ? exercise.time : exercise.lapTime
+    setEditing({ exerciseName, field, value: formatTime(seconds) })
+  }
+
   const toggleTimer = (exerciseName: string) => {
+    if (editingRef.current?.exerciseName === exerciseName) {
+      saveEdit()
+    }
+
     const isActive = activeTimers[exerciseName]
 
     if (isActive) {
@@ -95,6 +142,8 @@ export default function WeightTrainingTracker() {
   }
 
   const handleSubmit = () => {
+    saveEdit()
+
     // Stop all active timers
     Object.entries(intervalIds).forEach(([name, id]) => {
       if (id) {
@@ -103,12 +152,7 @@ export default function WeightTrainingTracker() {
       }
     })
 
-    setActiveTimers({
-      Squats: false,
-      "Chest Press": false,
-      "Bent Over Row": false,
-      "Tricep Raise": false,
-    })
+    setActiveTimers(makeTimerFlags(false))
 
     // Create a new workout session
     const newWorkout: WorkoutSession = {
@@ -202,35 +246,6 @@ export default function WeightTrainingTracker() {
     ))
   }
 
-  const toggleEditMode = (exerciseName: string) => {
-    setExercises(prev => prev.map(ex => 
-      ex.name === exerciseName ? { ...ex, isEditing: !ex.isEditing } : ex
-    ))
-  }
-
-  const handleTimeChange = (exerciseName: string, newTime: string, isLap: boolean = false) => {
-    // Parse MM:SS format to seconds
-    const [minutes, seconds] = newTime.split(':').map(Number)
-    if (isNaN(minutes) || isNaN(seconds)) return
-    
-    const totalSeconds = minutes * 60 + seconds
-    
-    setExercises(prev => prev.map(ex => 
-      ex.name === exerciseName 
-        ? { 
-            ...ex, 
-            [isLap ? 'lapTime' : 'time']: totalSeconds,
-            isEditing: false 
-          } 
-        : ex
-    ))
-  }
-
-  const formatTimeForInput = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`
-  }
 
   return (
     <div className="container max-w-3xl px-4 py-4 sm:py-8">
@@ -257,18 +272,18 @@ export default function WeightTrainingTracker() {
                   <div className="flex flex-col gap-1">
                     <div 
                       className={`text-xl sm:text-2xl font-mono tabular-nums ${hasImproved(exercise.name) ? 'text-green-500' : 'text-red-500'} cursor-pointer`}
-                      onClick={() => toggleEditMode(exercise.name)}
+                      onClick={() => startEditing(exercise.name, 'time')}
                     >
-                      {exercise.isEditing ? (
+                      {editing?.exerciseName === exercise.name && editing?.field === 'time' ? (
                         <Input
                           type="text"
-                          defaultValue={formatTimeForInput(exercise.time)}
+                          value={editing.value}
+                          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
                           className="h-8 w-24 text-xl font-mono"
-                          onBlur={(e) => handleTimeChange(exercise.name, e.target.value)}
+                          onBlur={saveEdit}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleTimeChange(exercise.name, e.currentTarget.value)
-                            }
+                            if (e.key === 'Enter') saveEdit()
                           }}
                           autoFocus
                         />
@@ -278,19 +293,20 @@ export default function WeightTrainingTracker() {
                     </div>
                     <div 
                       className="text-xs sm:text-sm font-mono tabular-nums text-muted-foreground cursor-pointer"
-                      onClick={() => toggleEditMode(exercise.name)}
+                      onClick={() => startEditing(exercise.name, 'lap')}
                     >
-                      {exercise.isEditing ? (
+                      {editing?.exerciseName === exercise.name && editing?.field === 'lap' ? (
                         <Input
                           type="text"
-                          defaultValue={formatTimeForInput(exercise.lapTime)}
+                          value={editing.value}
+                          onChange={(e) => setEditing({ ...editing, value: e.target.value })}
+                          onClick={(e) => e.stopPropagation()}
                           className="h-6 w-20 text-xs font-mono"
-                          onBlur={(e) => handleTimeChange(exercise.name, e.target.value, true)}
+                          onBlur={saveEdit}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              handleTimeChange(exercise.name, e.currentTarget.value, true)
-                            }
+                            if (e.key === 'Enter') saveEdit()
                           }}
+                          autoFocus
                         />
                       ) : (
                         `Lap: ${formatTime(exercise.lapTime)}`
@@ -352,7 +368,7 @@ export default function WeightTrainingTracker() {
                         <span className="font-medium text-sm sm:text-base">{exercise.name}</span>
                         <div className="text-right">
                           <div className="text-sm sm:text-base">{formatTime(exercise.time)}</div>
-                          <div className="text-sm sm:text-base">{exercise.weight ? `${exercise.weight} lbs` : "No weight recorded"}</div>
+                          <div className="text-sm sm:text-base">{exercise.weight ? `${exercise.weight} lbs` : 0}</div>
                         </div>
                       </div>
                     ))}
