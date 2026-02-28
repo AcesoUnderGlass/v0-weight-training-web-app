@@ -30,7 +30,8 @@ interface WorkoutSession {
 const EXERCISE_NAMES = [
   "Leg Press", "Leg Extension", "Leg Curl", "Abductors", "Adductors",
   "Bench Press", "Lat Pull Down", "Overhead Press", "Row (Machine)",
-  "Squats (free)", "Chest Press (free)", "Bent Over Row (free)", "Overhead Press (free)", "Tricep Raise (free)", "Plank"
+  "Squats (free)", "Plank",
+  "Chest Press (free)", "Bent Over Row (L)", "Bent Over Row (R)", "Overhead Press (free)", "Tricep Raise (free)"
 ]
 
 const makeDefaultExercises = (): ExerciseData[] =>
