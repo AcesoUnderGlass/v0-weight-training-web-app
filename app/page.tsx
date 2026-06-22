@@ -30,7 +30,7 @@ interface WorkoutSession {
 const EXERCISE_NAMES = [
   "Leg Press", "Leg Extension", "Leg Curl", "Abductors", "Adductors",
   "Bench Press", "Lat Pull Down", "Overhead Press", "Row (Machine)",
-  "Squats (free)", "Plank",
+  "Squats (free)", "Plank", "Bridge", "Shoulder rotate out", 
   "Chest Press (free)", "Bent Over Row (L)", "Bent Over Row (R)", "Overhead Press (free)", "Tricep Raise (free)"
 ]
 
