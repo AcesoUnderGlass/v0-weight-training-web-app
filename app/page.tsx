@@ -332,9 +332,9 @@ export default function WeightTrainingTracker() {
                       onClick={() => handleLap(exercise.name)}
                       disabled={!activeTimers[exercise.name]}
                       aria-label="Reset lap timer"
-                      className="h-8 w-8 sm:h-9 sm:w-9 p-0"
+                      className="h-14 w-14 sm:h-9 sm:w-9 p-0 shrink-0"
                     >
-                      <Timer className="h-4 w-4" />
+                      <Timer className="h-7 w-7 sm:h-4 sm:w-4" />
                     </Button>
                   </div>
 
