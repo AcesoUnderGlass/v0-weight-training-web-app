@@ -278,7 +278,7 @@ export default function WeightTrainingTracker() {
                       size="icon"
                       onClick={() => toggleTimer(exercise.name)}
                       aria-label={activeTimers[exercise.name] ? "Stop timer" : "Start timer"}
-                      className="h-10 w-10 sm:h-12 sm:w-12"
+                      className="h-10 w-10 shrink-0 sm:h-12 sm:w-12"
                     >
                       {activeTimers[exercise.name] ? <Pause className="h-5 w-5 sm:h-6 sm:w-6" /> : <Play className="h-5 w-5 sm:h-6 sm:w-6" />}
                     </Button>
@@ -332,9 +332,9 @@ export default function WeightTrainingTracker() {
                       onClick={() => handleLap(exercise.name)}
                       disabled={!activeTimers[exercise.name]}
                       aria-label="Reset lap timer"
-                      className="h-14 w-14 sm:h-9 sm:w-9 p-0 shrink-0"
+                      className="h-[84px] w-[84px] shrink-0 p-0 [&_svg]:size-[42px] sm:h-9 sm:w-9 sm:[&_svg]:size-4"
                     >
-                      <Timer className="h-7 w-7 sm:h-4 sm:w-4" />
+                      <Timer />
                     </Button>
                   </div>
 
