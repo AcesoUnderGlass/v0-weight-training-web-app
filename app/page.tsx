@@ -31,7 +31,7 @@ const EXERCISE_NAMES = [
   "Leg Press", "Leg Extension", "Leg Curl", "Abductors", "Adductors",
   "Bench Press", "Lat Pull Down", "Overhead Press", "Row (Machine)",
   "Squats (free)", "Shoulder rotate out (L)", "Shoulder rotate out (R)",
-  "Chest Press (free)", "Bent Over Row (L)", "Bent Over Row (R)", "Overhead Press (free)", "Tricep Raise (free)",
+  "Chest Press (free)", "Bent Over Row (L)", "Bent Over Row (R)", "Overhead Press (free)", "Tricep Raise (free)", "Farmer's Carry",
   "Plank", "Bridge", "Side Bend (L)", "Side Bend (R)", "Back Raise", "Kneeling Crunch"
 ]
 
